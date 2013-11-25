@@ -14,7 +14,7 @@
 #define fequal(a,b) (fabs((a) - (b)) < FLT_EPSILON)
 #define fequalzero(a) (fabs(a) < FLT_EPSILON)
 
-static CGFloat const SVPullToRefreshViewHeight = 60;
+static CGFloat const SVPullToRefreshViewHeight = 74; // changed height for our app 60;
 
 @interface SVPullToRefreshArrow : UIView
 
@@ -26,6 +26,7 @@ static CGFloat const SVPullToRefreshViewHeight = 60;
 @interface SVPullToRefreshView ()
 
 @property (nonatomic, copy) void (^pullToRefreshActionHandler)(void);
+@property (nonatomic, copy) void (^customRotateArrowActionHandler)(UIView* arrow, float degrees, BOOL hide);
 
 @property (nonatomic, strong) SVPullToRefreshArrow *arrow;
 @property (nonatomic, strong) UIActivityIndicatorView *activityIndicatorView;
@@ -44,6 +45,8 @@ static CGFloat const SVPullToRefreshViewHeight = 60;
 @property (nonatomic, assign) BOOL showsPullToRefresh;
 @property (nonatomic, assign) BOOL showsDateLabel;
 @property(nonatomic, assign) BOOL isObserving;
+
+@property (nonatomic, assign) BOOL isSpinningCustomActivityIndicator;
 
 - (void)resetScrollViewContentInset;
 - (void)setScrollViewContentInsetForLoading;
@@ -158,6 +161,8 @@ static char UIScrollViewPullToRefreshView;
 // public properties
 @synthesize pullToRefreshActionHandler, arrowColor, textColor, activityIndicatorViewColor, activityIndicatorViewStyle, lastUpdatedDate, dateFormatter;
 
+@synthesize customArrow, customActivityIndicator;
+
 @synthesize state = _state;
 @synthesize scrollView = _scrollView;
 @synthesize showsPullToRefresh = _showsPullToRefresh;
@@ -231,39 +236,103 @@ static char UIScrollViewPullToRefreshView;
         switch (self.state) {
             case SVPullToRefreshStateAll:
             case SVPullToRefreshStateStopped:
-                self.arrow.alpha = 1;
-                [self.activityIndicatorView stopAnimating];
-                switch (self.position) {
-                    case SVPullToRefreshPositionTop:
-                        [self rotateArrow:0 hide:NO];
-                        break;
-                    case SVPullToRefreshPositionBottom:
-                        [self rotateArrow:(float)M_PI hide:NO];
-                        break;
+            
+            if (self.customArrow != nil) {
+              self.arrow.hidden = YES;
+              
+              if (self.customArrow.superview == nil) {
+                [self addSubview:self.customArrow];
+              }
+              self.customArrow.alpha = 1;
+              
+            } else {
+              self.arrow.hidden = NO;
+              self.arrow.alpha = 1;
+            }
+            
+            if (self.customActivityIndicator != nil) {
+              [self stopSpinningCustomActivityIndicator];
+            } else {
+              [self.activityIndicatorView stopAnimating];
+            }
+            
+            switch (self.position) {
+                
+              case SVPullToRefreshPositionTop:
+                if (self.customRotateArrowActionHandler != nil) {
+                  self.customRotateArrowActionHandler((self.customArrow != nil ? self.customArrow : _arrow),
+                                                      0, NO);
+                } else {
+                  [self rotateArrow:0 hide:NO];
                 }
                 break;
-                
+              case SVPullToRefreshPositionBottom:
+                if (self.customRotateArrowActionHandler != nil) {
+                  self.customRotateArrowActionHandler((self.customArrow != nil ? self.customArrow : _arrow),
+                                                      (float)M_PI, NO);
+                } else {
+                  [self rotateArrow:(float)M_PI hide:NO];
+                }
+                break;
+            }
+            
+      
+                break;
+            
             case SVPullToRefreshStateTriggered:
-                switch (self.position) {
-                    case SVPullToRefreshPositionTop:
-                        [self rotateArrow:(float)M_PI hide:NO];
-                        break;
-                    case SVPullToRefreshPositionBottom:
-                        [self rotateArrow:0 hide:NO];
-                        break;
+            
+            self.arrow.hidden = (self.customArrow != nil);
+            
+            switch (self.position) {
+              case SVPullToRefreshPositionTop:
+                if (self.customRotateArrowActionHandler != nil) {
+                  self.customRotateArrowActionHandler((self.customArrow != nil ? self.customArrow : _arrow),
+                                                      (float)M_PI, NO);
+                } else {
+                  [self rotateArrow:(float)M_PI hide:NO];
                 }
                 break;
-                
-            case SVPullToRefreshStateLoading:
-                [self.activityIndicatorView startAnimating];
-                switch (self.position) {
-                    case SVPullToRefreshPositionTop:
-                        [self rotateArrow:0 hide:YES];
-                        break;
-                    case SVPullToRefreshPositionBottom:
-                        [self rotateArrow:(float)M_PI hide:YES];
-                        break;
+              case SVPullToRefreshPositionBottom:
+                if (self.customRotateArrowActionHandler != nil) {
+                  self.customRotateArrowActionHandler((self.customArrow != nil ? self.customArrow : _arrow),
+                                                      0, NO);
+                } else {
+                  [self rotateArrow:0 hide:NO];
                 }
+                break;
+            }
+            
+            break;
+            
+            case SVPullToRefreshStateLoading:
+            
+            self.arrow.hidden = (self.customArrow != nil);
+            
+              if (self.customActivityIndicator != nil) {
+                [self startSpinningCustomActivityIndicator];
+              } else {
+                [self.activityIndicatorView startAnimating];
+              }
+            
+            switch (self.position) {
+              case SVPullToRefreshPositionTop:
+                if (self.customRotateArrowActionHandler != nil) {
+                  self.customRotateArrowActionHandler((self.customArrow != nil ? self.customArrow : _arrow),
+                                                      0, YES);
+                } else {
+                  [self rotateArrow:0 hide:YES];
+                }
+                break;
+              case SVPullToRefreshPositionBottom:
+                if (self.customRotateArrowActionHandler != nil) {
+                  self.customRotateArrowActionHandler((self.customArrow != nil ? self.customArrow : _arrow),
+                                                      (float)M_PI, YES);
+                } else {
+                  [self rotateArrow:(float)M_PI hide:YES];
+                }
+                break;
+            }
+            
                 break;
         }
         
@@ -321,6 +390,9 @@ static char UIScrollViewPullToRefreshView;
                                       self.arrow.bounds.size.width,
                                       self.arrow.bounds.size.height);
         self.activityIndicatorView.center = self.arrow.center;
+      
+        self.customArrow.center = self.arrow.center;
+        self.customActivityIndicator.center = self.arrow.center;
     }
 }
 
@@ -511,6 +583,11 @@ static char UIScrollViewPullToRefreshView;
 
 #pragma mark - Setters
 
+- (void)addCustomRotateArrowActionHandler:(void (^)(UIView* customActivityIndicator, float degrees, BOOL hide))actionHandler
+{
+  self.customRotateArrowActionHandler = actionHandler;
+}
+
 - (void)setArrowColor:(UIColor *)newArrowColor {
 	self.arrow.arrowColor = newArrowColor; // pass through
 	[self.arrow setNeedsDisplay];
@@ -659,10 +736,54 @@ static char UIScrollViewPullToRefreshView;
 
 - (void)rotateArrow:(float)degrees hide:(BOOL)hide {
     [UIView animateWithDuration:0.2 delay:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
+      if (self.customArrow != nil) {
+        self.customArrow.layer.transform = CATransform3DMakeRotation(degrees, 0, 0, 1);
+        self.customArrow.layer.opacity = !hide;
+
+      } else {
         self.arrow.layer.transform = CATransform3DMakeRotation(degrees, 0, 0, 1);
         self.arrow.layer.opacity = !hide;
         //[self.arrow setNeedsDisplay];//ios 4
+      }
+
     } completion:NULL];
+}
+
+- (void) spinCustomActivityIndicatorWithOptions: (UIViewAnimationOptions) options {
+  // this spin completes 360 degrees every 0.8 seconds
+  [UIView animateWithDuration: 0.20f
+                        delay: 0.0f
+                      options: options
+                   animations: ^{
+                     self.customActivityIndicator.transform = CGAffineTransformRotate(self.customActivityIndicator.transform, M_PI / 2);
+                   }
+                   completion: ^(BOOL finished) {
+                     if (finished) {
+                       if (_isSpinningCustomActivityIndicator) {
+                         // if flag still set, keep spinning with constant speed
+                         [self spinCustomActivityIndicatorWithOptions: UIViewAnimationOptionCurveLinear];
+                       }
+                     }
+                   }];
+}
+
+- (void) startSpinningCustomActivityIndicator {
+  
+  if (self.customActivityIndicator.superview == nil) {
+    [self addSubview:self.customActivityIndicator];
+  }
+  self.customActivityIndicator.hidden = NO;
+  
+  if (!_isSpinningCustomActivityIndicator) {
+    _isSpinningCustomActivityIndicator = YES;
+    [self spinCustomActivityIndicatorWithOptions: UIViewAnimationOptionCurveEaseIn];
+  }
+}
+
+- (void) stopSpinningCustomActivityIndicator {
+  // set the flag to stop spinning, and hide indicator.
+  _isSpinningCustomActivityIndicator = NO;
+  self.customActivityIndicator.hidden = YES;
 }
 
 @end

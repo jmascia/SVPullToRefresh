@@ -56,6 +56,11 @@ typedef NS_ENUM(NSUInteger, SVPullToRefreshState) {
 - (void)setSubtitle:(NSString *)subtitle forState:(SVPullToRefreshState)state;
 - (void)setCustomView:(UIView *)view forState:(SVPullToRefreshState)state;
 
+// JM:
+@property (nonatomic, readwrite) UIView* customArrow;
+@property (nonatomic, readwrite) UIView* customActivityIndicator;
+- (void)addCustomRotateArrowActionHandler:(void (^)(UIView* arrow, float degrees, BOOL hide))actionHandler;
+
 - (void)startAnimating;
 - (void)stopAnimating;
 
