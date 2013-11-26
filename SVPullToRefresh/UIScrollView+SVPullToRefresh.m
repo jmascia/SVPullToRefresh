@@ -750,8 +750,8 @@ static char UIScrollViewPullToRefreshView;
 }
 
 - (void) spinCustomActivityIndicatorWithOptions: (UIViewAnimationOptions) options {
-  // this spin completes 360 degrees every 0.8 seconds
-  [UIView animateWithDuration: 0.20f
+  // this spin completes 360 degrees every 0.72 seconds
+  [UIView animateWithDuration: 0.18f
                         delay: 0.0f
                       options: options
                    animations: ^{
